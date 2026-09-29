@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 Gamification — Teach with Purpose, Teach with Energy!</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Vazirmatn:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0b1e;
+  --panel:#17142e;
+  --neon-pink:#ff2d95;
+  --neon-cyan:#00f0ff;
+  --neon-yellow:#ffe600;
+  --neon-green:#39ff88;
+  --neon-purple:#a855f7;
+  --text:#f2f0ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Vazirmatn',Tahoma,sans-serif;color:var(--text);}
+/* ---------- animated background ---------- */
+#bg-canvas{position:fixed;inset:0;z-index:0;opacity:.9;}
+.bg-grid{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 39px,rgba(168,85,247,.08) 39px 40px),
+    repeating-linear-gradient(90deg,transparent 0 39px,rgba(168,85,247,.08) 39px 40px);
+  mask-image:linear-gradient(to top,transparent 20%,#000 80%);
+  -webkit-mask-image:linear-gradient(to top,transparent 20%,#000 80%);
+}
+.scanlines{position:fixed;inset:0;z-index:50;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.12) 0 2px,transparent 2px 4px);
+  mix-blend-mode:overlay;opacity:.5;}
+/* ---------- HUD ---------- */
+#hud{
+  position:fixed;top:0;right:0;left:0;z-index:30;display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-cyan);
+  text-shadow:0 0 8px var(--neon-cyan);background:linear-gradient(to bottom,rgba(13,11,30,.9),transparent);
+}
+.hud-item{display:flex;align-items:center;gap:6px;}
+#score-display{transition:transform .15s;}
+.blink{animation:blink 1s steps(2) infinite;}
+@keyframes blink{50%{opacity:.15;}}
+#progress-track{width:min(300px,32vw);height:12px;border:2px solid var(--neon-cyan);border-radius:8px;overflow:hidden;box-shadow:0 0 10px rgba(0,240,255,.5);}
+#progress-fill{height:100%;width:0%;background:repeating-linear-gradient(45deg,var(--neon-cyan) 0 8px,#0aa 8px 16px);transition:width .4s cubic-bezier(.68,-0.55,.27,1.55);}
+#level-badge{color:var(--neon-yellow);text-shadow:0 0 8px var(--neon-yellow);}
+/* ---------- Slides ---------- */
+#deck{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:56px 20px 76px;}
+.slide{
+  position:absolute;inset:56px 20px 76px;display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;opacity:0;transform:scale(.92) translateY(30px);text-align:center;
+}
+.slide.active{display:flex;animation:slideIn .55s cubic-bezier(.22,1.2,.36,1) forwards;}
+.slide.leaving{animation:slideOut .35s ease forwards;}
+@keyframes slideIn{from{opacity:0;transform:scale(.92) translateY(30px);}to{opacity:1;transform:scale(1) translateY(0);}}
+@keyframes slideOut{to{opacity:0;transform:scale(.95) translateY(-30px);}}
+.slide-title{
+  font-family:'Press Start 2P','Vazirmatn',monospace;font-size:clamp(16px,3vw,30px);line-height:1.7;
+  background:linear-gradient(90deg,var(--neon-cyan),var(--neon-pink),var(--neon-yellow));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 12px rgba(255,45,149,.5));
+}
+.slide-title .fa{font-family:'Vazirmatn';font-weight:900;-webkit-text-fill-color:var(--text);}
+.kicker{font-family:'Press Start 2P',monospace;font-size:9px;letter-spacing:2px;color:var(--neon-green);text-shadow:0 0 8px var(--neon-green);}
+.card{
+  background:linear-gradient(160deg,rgba(23,20,46,.95),rgba(23,20,46,.75));
+  border:2px solid rgba(168,85,247,.5);border-radius:16px;padding:14px 18px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04) inset,0 10px 30px rgba(0,0,0,.45);
+  max-width:900px;width:100%;
+}
+.card b{color:var(--neon-yellow);}
+.card .en{color:var(--neon-cyan);font-weight:700;}
+.list{display:flex;flex-direction:column;gap:8px;align-items:flex-start;text-align:right;width:100%;max-width:820px;}
+.list li{list-style:none;display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px 14px;width:100%;font-size:clamp(13px,1.6vw,17px);}
+.list .ico{font-size:1.3em;filter:drop-shadow(0 0 6px rgba(0,240,255,.6));}
+/* ---------- Pixel button ---------- */
+.btn{
+  font-family:'Press Start 2P','Vazirmatn',monospace;font-size:12px;cursor:pointer;user-select:none;
+  color:#0d0b1e;background:var(--neon-yellow);border:none;border-radius:6px;padding:14px 26px;
+  box-shadow:0 5px 0 #b89d00,0 0 22px rgba(255,230,0,.45);transition:transform .1s,box-shadow .1s;
+}
+.btn:active{transform:translateY(5px);box-shadow:0 0 0 #b89d00,0 0 22px rgba(255,230,0,.45);}
+.btn.pink{background:var(--neon-pink);box-shadow:0 5px 0 #8f1257,0 0 22px rgba(255,45,149,.5);color:#fff;}
+.btn.pink:active{box-shadow:0 0 0 #8f1257;}
+/* ---------- Start screen ---------- */
+#slide-0 .arcade-logo{
+  font-family:'Press Start 2P',monospace;font-size:clamp(22px,5vw,52px);line-height:1.6;
+  background:linear-gradient(180deg,var(--neon-yellow),var(--neon-pink));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 20px rgba(255,45,149,.6));animation:float 3s ease-in-out infinite;
+}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.credits{font-size:clamp(13px,1.8vw,17px);color:#c9c4ee;line-height:2;}
+.credits .label{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--neon-cyan);display:block;margin-bottom:2px;}
+.insert-coin{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--neon-yellow);margin-top:6px;}
+/* ---------- Steps (Core of teaching) ---------- */
+.steps{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:1000px;}
+.step{
+  background:var(--panel);border:2px solid var(--neon-purple);border-radius:14px;padding:12px 16px;width:min(300px,88vw);
+  text-align:right;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;
+}
+.step:hover{transform:translateY(-6px);border-color:var(--neon-cyan);box-shadow:0 0 18px rgba(0,240,255,.35);}
+.step .num{font-family:'Press Start 2P',monospace;font-size:16px;color:var(--neon-yellow);text-shadow:0 0 8px var(--neon-yellow);}
+.step h4{color:var(--neon-cyan);margin:6px 0 4px;font-size:16px;}
+.step p{font-size:13px;color:#c9c4ee;line-height:1.8;}
+.step .tip{max-height:0;overflow:hidden;transition:max-height .4s ease;color:var(--neon-green);font-size:12.5px;}
+.step.open .tip{max-height:200px;margin-top:6px;}
+/* ---------- Game cards grid ---------- */
+.games-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;width:100%;max-width:1050px;}
+.game-card{
+  background:linear-gradient(160deg,#1d1838,#141129);border:2px solid var(--neon-pink);border-radius:14px;
+  padding:16px 12px;cursor:pointer;transition:transform .18s,box-shadow .18s;position:relative;overflow:hidden;
+}
+.game-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% -20%,rgba(255,230,0,.18),transparent 60%);}
+.game-card:hover{transform:translateY(-6px) scale(1.03);box-shadow:0 0 22px rgba(255,45,149,.55);border-color:var(--neon-yellow);}
+.game-card .g-emoji{font-size:34px;display:block;filter:drop-shadow(0 0 10px rgba(255,230,0,.6));}
+.game-card h4{font-family:'Press Start 2P','Vazirmatn',monospace;font-size:11px;color:var(--neon-yellow);margin:10px 0 6px;line-height:1.8;}
+.game-card .g-hint{font-size:11px;color:#9a93c9;}
+.game-card .press{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--neon-green);margin-top:8px;display:block;}
+/* ---------- Modal ---------- */
+#modal{
+  position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(6,4,18,.82);backdrop-filter:blur(6px);padding:20px;
+}
+#modal.show{display:flex;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal-box{
+  background:linear-gradient(160deg,#221b45,#141129);border:3px solid var(--neon-yellow);border-radius:20px;
+  max-width:640px;width:100%;max-height:82vh;overflow:auto;padding:26px;text-align:right;position:relative;
+  box-shadow:0 0 40px rgba(255,230,0,.35);animation:pop .35s cubic-bezier(.22,1.4,.36,1);
+}
+@keyframes pop{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
+.modal-box h3{font-family:'Press Start 2P','Vazirmatn',monospace;font-size:15px;color:var(--neon-yellow);
+  text-shadow:0 0 10px rgba(255,230,0,.6);margin-bottom:12px;line-height:1.9;}
+.modal-box p,.modal-box li{font-size:15px;color:#e6e2ff;line-height:2.1;}
+.modal-box ul{padding-right:20px;}
+.modal-box .skills{margin-top:12px;font-family:'Press Start 2P','Vazirmatn',monospace;font-size:10px;color:var(--neon-green);border-top:1px dashed rgba(255,255,255,.2);padding-top:10px;line-height:2;}
+#modal-close{
+  position:absolute;top:12px;left:12px;width:38px;height:38px;border-radius:10px;border:2px solid var(--neon-pink);
+  background:transparent;color:var(--neon-pink);font-size:18px;cursor:pointer;font-family:'Press Start 2P',monospace;
+}
+#modal-close:hover{background:var(--neon-pink);color:#fff;}
+/* ---------- Mistakes slide ---------- */
+.mistakes{display:flex;flex-direction:column;gap:8px;width:100%;max-width:860px;}
+.mistake-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;}
+.mistake-row>div{border-radius:12px;padding:9px 14px;font-size:clamp(12px,1.5vw,15px);line-height:1.8;}
+.m-wrong{background:rgba(255,45,85,.12);border:1px solid rgba(255,45,85,.6);color:#ffb3c6;text-align:left;}
+.m-right{background:rgba(57,255,136,.1);border:1px solid rgba(57,255,136,.55);color:#c9ffdf;text-align:right;}
+.m-arrow{font-family:'Press Start 2P',monospace;color:var(--neon-yellow);font-size:12px;animation:blink 1.4s steps(2) infinite;}
+/* ---------- Toolbox chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:900px;}
+.chip{
+  background:var(--panel);border:2px solid var(--neon-purple);border-radius:999px;padding:10px 18px;
+  font-size:clamp(12px,1.6vw,16px);cursor:default;transition:transform .2s,box-shadow .2s,border-color .2s;
+}
+.chip:hover{transform:translateY(-4px) rotate(-2deg);border-color:var(--neon-yellow);box-shadow:0 0 16px rgba(255,230,0,.4);}
+/* ---------- Bottom nav ---------- */
+#nav{
+  position:fixed;bottom:0;right:0;left:0;z-index:30;display:flex;align-items:center;justify-content:center;gap:14px;
+  padding:12px;background:linear-gradient(to top,rgba(13,11,30,.92),transparent);
+}
+.nav-btn{
+  font-family:'Press Start 2P',monospace;font-size:11px;cursor:pointer;user-select:none;
+  background:var(--panel);color:var(--neon-cyan);border:2px solid var(--neon-cyan);border-radius:10px;padding:10px 18px;
+  box-shadow:0 0 12px rgba(0,240,255,.3);transition:transform .12s,box-shadow .12s;
+}
+.nav-btn:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 0 20px rgba(0,240,255,.6);}
+.nav-btn:disabled{opacity:.3;cursor:not-allowed;}
+#counter{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--neon-yellow);text-shadow:0 0 8px var(--neon-yellow);min-width:90px;text-align:center;}
+/* ---------- Golden rule / ending ---------- */
+.golden{font-size:clamp(15px,2.4vw,24px);line-height:2.2;font-weight:700;}
+.golden .hl{color:var(--neon-yellow);text-shadow:0 0 12px rgba(255,230,0,.5);}
+.final-btns{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;justify-content:center;}
+/* ---------- Confetti ---------- */
+.confetti{position:fixed;top:-10px;z-index:70;width:10px;height:14px;pointer-events:none;animation:fall linear forwards;}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.2;}}
+@media (max-width:640px){
+  .mistake-row{grid-template-columns:1fr;}
+  .m-arrow{transform:rotate(90deg);justify-self:center;}
+  #progress-track{width:26vw;}
+  .slide{inset:50px 10px 70px;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="bg-grid"></div>
+<div class="scanlines"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-item">🎯 SCORE <span id="score-display">0</span></div>
+  <div class="hud-item"><div id="progress-track"><div id="progress-fill"></div></div></div>
+  <div class="hud-item" id="level-badge">LV.1</div>
+</div>
+
+<!-- ============ SLIDES ============ -->
+<div id="deck">
+
+  <!-- 0 : START -->
+  <section class="slide" id="slide-0">
+    <div class="kicker">INSERT PRESENTATION</div>
+    <div class="arcade-logo">🎮 GAMIFICATION 🎮</div>
+    <h2 class="slide-title" style="font-size:clamp(14px,2.4vw,24px);">Teach with Purpose,<br>Teach with Energy!</h2>
+    <p style="color:#c9c4ee;font-size:clamp(13px,1.8vw,17px);">The Essentials of an Effective &amp; Engaging English Class</p>
+    <div class="card credits" style="max-width:460px;">
+      <span class="label">SUPERVISOR</span>
+      Farzaneh Goodarzi
+      <span class="label" style="margin-top:10px;">COMPLEX</span>
+      Soodeh Complex
+    </div>
+    <button class="btn" id="start-btn">▶ START</button>
+    <div class="insert-coin blink">PRESS START · یا کلید ← → را بزنید</div>
+  </section>
+
+  <!-- 1 : BEFORE THE CLASS -->
+  <section class="slide" id="slide-1">
+    <div class="kicker">STAGE 01 · PREP MODE</div>
+    <h2 class="slide-title">📝 <span class="fa">پیش از شروع کلاس</span></h2>
+    <p style="color:#c9c4ee;">Teacher قبل از شروع کلاس باید بداند:</p>
+    <ul class="list">
+      <li><span class="ico">🎯</span>هدف درس دقیقاً چیست؟</li>
+      <li><span class="ico">🗣️</span><span><b class="en">Teacher Talk</b> مناسب چقدر است؟</span></li>
+      <li><span class="ico">🧰</span><span>چه <b class="en">Materials</b>ای لازم دارم؟</span></li>
+      <li><span class="ico">⚠️</span>چه مشکلاتی ممکن است در کلاس پیش بیاید؟</li>
+      <li><span class="ico">🔄</span><span>اگر <b class="en">Activity</b> طبق برنامه پیش نرفت، <b class="en">Plan B</b> چیست؟</span></li>
+    </ul>
+  </section>
+
+  <!-- 2 : CORE OF TEACHING -->
+  <section class="slide" id="slide-2">
+    <div class="kicker">STAGE 02 · MAIN QUEST</div>
+    <h2 class="slide-title">📚 <span class="fa">اصول اصلی تدریس</span></h2>
+    <p style="color:var(--neon-yellow);font-size:13px;">👆 روی هر مرحله کلیک کنید تا Tip باز شود</p>
+    <div class="steps">
+      <div class="step" onclick="this.classList.toggle('open')">
+        <div class="num">1UP</div><h4>Lead-in</h4>
+        <p>شروع جذاب برای ایجاد <b class="en">Context</b> و جلب توجه <b class="en">Students</b>.</p>
+        <div class="tip">💡 یک عکس، یک سوال غافلگیرکننده یا یک بازی ۲ دقیقه‌ای!</div>
+      </div>
+      <div class="step" onclick="this.classList.toggle('open')">
+        <div class="num">2UP</div><h4>Presentation</h4>
+        <p>معرفی <b class="en">Language</b> جدید با <b class="en">Visuals + Gestures + TPR + Realia + Examples</b></p>
+        <div class="tip">💡 کمتر حرف بزنید، بیشتر نشان دهید!</div>
+      </div>
+      <div class="step" onclick="this.classList.toggle('open')">
+        <div class="num">3UP</div><h4>Practice</h4>
+        <p>تمرین کنترل‌شده و هدایت‌شده برای تثبیت <b class="en">Language</b>.</p>
+        <div class="tip">💡 از کلاس به صورت Chorus شروع کنید، بعد Individual.</div>
+      </div>
+      <div class="step" onclick="this.classList.toggle('open')">
+        <div class="num">4UP</div><h4>Production</h4>
+        <p>استفاده آزادتر <b class="en">Students</b> از <b class="en">Language</b> در یک <b class="en">Context</b> معنادار.</p>
+        <div class="tip">💡 اینجا جایی است که STT بالا می‌رود!</div>
+      </div>
+      <div class="step" onclick="this.classList.toggle('open')">
+        <div class="num">★</div><h4>Checking Understanding – CCQ</h4>
+        <p>به‌جای «Do you understand?» با <b class="en">CCQs, Demonstration, Examples</b> مطمئن شوید بچه‌ها واقعاً فهمیده‌اند.</p>
+        <div class="tip">💡 «Is a lion big or small?» به‌جای «Do you understand?»</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 : KIDS LEARNING FEATURES -->
+  <section class="slide" id="slide-3">
+    <div class="kicker">STAGE 03 · PLAYER STATS</div>
+    <h2 class="slide-title">👧🏻👦🏻 <span class="fa">ویژگی‌های یادگیری کودکان</span></h2>
+    <ul class="list">
+      <li><span class="ico">✂️</span>کوتاه و واضح بودن <b class="en">Instructions</b></li>
+      <li><span class="ico">🖼️</span><span>استفاده از <b class="en">Visuals, Gestures &amp; TPR</b></span></li>
+      <li><span class="ico">❓</span><span><b class="en">CCQ &amp; Checking Understanding</b></span></li>
+      <li><span class="ico">🪜</span><span>حرکت از <b class="en">Simple → Complex</b></span></li>
+      <li><span class="ico">🔁</span><span><b class="en">Repetition</b> بدون خسته‌کننده شدن</span></li>
+      <li><span class="ico">⚖️</span><span>Balance بین <b class="en">TTT</b> و <b class="en">STT</b></span></li>
+      <li><span class="ico">🧭</span><span><b class="en">Classroom Management</b></span></li>
+      <li><span class="ico">🎯</span><span>داشتن <b class="en">Learning Objective</b> برای هر Activity</span></li>
+      <li><span class="ico">🎪</span><span>توجه به تفاوت بین <b class="en">Fun Activity</b> و <b class="en">Effective Activity</b></span></li>
+    </ul>
+  </section>
+
+  <!-- 4 : TEACHER ENERGY -->
+  <section class="slide" id="slide-4">
+    <div class="kicker">STAGE 04 · POWER-UP</div>
+    <h2 class="slide-title">⚡ <span class="fa">انرژی Teacher</span></h2>
+    <div class="card" style="font-family:'Press Start 2P','Vazirmatn',monospace;font-size:11px;line-height:2.2;color:var(--neon-yellow);">
+      VOICE + FACE + BODY + MOVEMENT + SURPRISE
+    </div>
+    <div class="steps">
+      <div class="step" onclick="this.classList.toggle('open')"><div class="num">🎙️</div><h4>Voice &amp; Intonation</h4><p>تغییر در <b class="en">Volume, Intonation, Stress, Speed</b></p><div class="tip">💡 آهسته… تند… پچ‌پچ… فریاد شادی!</div></div>
+      <div class="step" onclick="this.classList.toggle('open')"><div class="num">😊</div><h4>Facial Expressions</h4><p>چهره برای انتقال <b class="en">Meaning &amp; Emotion</b></p><div class="tip">💡 چهره‌تان خودش نصف تدریس است!</div></div>
+      <div class="step" onclick="this.classList.toggle('open')"><div class="num">🚶</div><h4>Movement</h4><p>Teacher نباید تمام کلاس در یک نقطه بایستد.</p><div class="tip">💡 قسمت‌های مختلف کلاس را «صاحب» شوید.</div></div>
+      <div class="step" onclick="this.classList.toggle('open')"><div class="num">✋</div><h4>Gestures</h4><p>کمک به درک <b class="en">Meaning</b></p><div class="tip">💡 هر کلمه‌ای یک حرکت دست داشته باشد.</div></div>
+      <div class="step" onclick="this.classList.toggle('open')"><div class="num">⏩</div><h4>Changing the Pace</h4><p>تغییر ریتم کلاس برای حفظ <b class="en">Energy</b></p><div class="tip">💡 آرام → سریع → بازی → سکوت ناگهانی!</div></div>
+      <div class="step" onclick="this.classList.toggle('open')"><div class="num">❤️</div><h4>Real Enthusiasm</h4><p>Enthusiasm واقعی، نه صرفاً بلند صحبت کردن!</p><div class="tip">💡 بچه‌ها انرژی شما را کپی می‌کنند.</div></div>
+    </div>
+  </section>
+
+  <!-- 5 : STUDENT ENGAGEMENT -->
+  <section class="slide" id="slide-5">
+    <div class="kicker">STAGE 05 · MULTIPLAYER MODE</div>
+    <h2 class="slide-title">🎮 <span class="fa">Student Engagement</span></h2>
+    <p style="color:#c9c4ee;max-width:800px;">بچه نباید بیشترِ زمان کلاس فقط تماشاگر Teacher باشد. هدف این است که Students:</p>
+    <div class="chips" style="margin-top:4px;">
+      <span class="chip">🗣️ Speak</span><span class="chip">👂 Listen</span><span class="chip">🤝 Interact</span>
+      <span class="chip">🏃 Move</span><span class="chip">🎯 Participate</span><span class="chip">💭 Think</span>
+    </div>
+    <div class="card" style="margin-top:8px;">
+      <b style="color:var(--neon-pink);">📈 افزایش Student Talking Time با:</b>
+      <div class="chips" style="margin-top:10px;">
+        <span class="chip">👫 Pair Work</span><span class="chip">👥 Group Work</span><span class="chip">🎲 Games &amp; Competition</span>
+        <span class="chip">🎁 Student Choice</span><span class="chip">💬 Interaction</span><span class="chip">🏃 Movement</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 : FLASHCARD GAMES BANK -->
+  <section class="slide" id="slide-6">
+    <div class="kicker">STAGE 06 · BONUS LEVEL</div>
+    <h2 class="slide-title">🃏 <span class="fa">Flashcard Games Bank</span></h2>
+    <p style="color:var(--neon-yellow);font-size:13px;">🖱️ روی نام هر بازی کلیک کنید تا توضیحاتش باز شود</p>
+    <div class="games-grid">
+      <div class="game-card" data-game="g1"><span class="g-emoji">👀</span><h4>What's Missing?</h4><span class="g-hint">حدس کارت حذف‌شده</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="g2"><span class="g-emoji">⚡</span><h4>Fast Touch</h4><span class="g-hint">مسابقه سرعت لمس</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="g3"><span class="g-emoji">👋🏻</span><h4>Flashcard Slap</h4><span class="g-hint">ضربه به کارت درست</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="g4"><span class="g-emoji">👁️</span><h4>Guess the Card</h4><span class="g-hint">حدس با نمایش تدریجی</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="g5"><span class="g-emoji">🏃🏻‍♀️</span><h4>Run &amp; Touch</h4><span class="g-hint">دویدن و پیدا کردن کارت</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="g6"><span class="g-emoji">🎵</span><h4>Pass the Card</h4><span class="g-hint"> musical chairs با کارت</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="g7"><span class="g-emoji">🎯</span><h4>Teacher Says</h4><span class="g-hint">نسخه Flashcard-based Simon Says</span><span class="press">[ PRESS TO PLAY ]</span></div>
+    </div>
+  </section>
+
+  <!-- 7 : GAMES WITHOUT FLASHCARDS -->
+  <section class="slide" id="slide-7">
+    <div class="kicker">STAGE 07 · HIDDEN LEVEL</div>
+    <h2 class="slide-title">🎮 <span class="fa">Games Without Flashcards</span></h2>
+    <p style="color:var(--neon-yellow);font-size:13px;">🖱️ روی نام هر بازی کلیک کنید تا توضیحاتش باز شود</p>
+    <div class="games-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));">
+      <div class="game-card" data-game="h1" style="border-color:var(--neon-cyan);"><span class="g-emoji">🏃🏻‍♀️</span><h4 style="color:var(--neon-cyan);">Running Dictation</h4><span class="g-hint">دیکته + دویدن + کار تیمی</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="h2" style="border-color:var(--neon-cyan);"><span class="g-emoji">🎲</span><h4 style="color:var(--neon-cyan);">Roll &amp; Say</h4><span class="g-hint">تاس + دسته‌بندی واژگان</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="h3" style="border-color:var(--neon-cyan);"><span class="g-emoji">🎭</span><h4 style="color:var(--neon-cyan);">Charades</h4><span class="g-hint">اجرای بدون کلام</span><span class="press">[ PRESS TO PLAY ]</span></div>
+      <div class="game-card" data-game="h4" style="border-color:var(--neon-cyan);"><span class="g-emoji">🏆</span><h4 style="color:var(--neon-cyan);">Command &amp; Pick</h4><span class="g-hint">دستور + واکنش سریع</span><span class="press">[ PRESS TO PLAY ]</span></div>
+    </div>
+  </section>
+
+  <!-- 8 : ACTIVITY TOOLBOX -->
+  <section class="slide" id="slide-8">
+    <div class="kicker">STAGE 08 · INVENTORY</div>
+    <h2 class="slide-title">🧰 <span class="fa">Activity Toolbox</span></h2>
+    <p style="color:#c9c4ee;max-width:800px;">🎭 فقط Flashcard نیست! برای طراحی Activities فقط به Flashcards محدود نشوید؛ از ابزارها و Activity Types مختلف استفاده کنید:</p>
+    <div class="chips" style="margin-top:6px;">
+      <span class="chip">🧸 Toys &amp; Realia</span><span class="chip">🖼️ Pictures &amp; Posters</span>
+      <span class="chip">🎵 Songs &amp; Chants</span><span class="chip">🤸 TPR</span>
+      <span class="chip">🎭 Role Play</span><span class="chip">🎲 Dice Games</span>
+      <span class="chip">🏃 Movement Games</span><span class="chip">👫 Pair / Group Activities</span>
+      <span class="chip">🎨 Drawing &amp; Craft</span><span class="chip">🕵🏻 Guessing Games</span>
+      <span class="chip">🎁 Mystery Box</span><span class="chip">🎯 Board Games</span>
+    </div>
+  </section>
+
+  <!-- 9 : COMMON MISTAKES -->
+  <section class="slide" id="slide-9">
+    <div class="kicker">STAGE 09 · BOSS FIGHT ⚔️</div>
+    <h2 class="slide-title">🚨 <span class="fa">اشتباهات رایج کلاس</span></h2>
+    <div class="mistakes">
+      <div class="mistake-row"><div class="m-wrong">❌ توضیح طولانی Teacher</div><div class="m-arrow">➜</div><div class="m-right">✅ Keep Instructions Short &amp; Clear</div></div>
+      <div class="mistake-row"><div class="m-wrong">❌ پرسیدن مداوم «Do you understand?»</div><div class="m-arrow">➜</div><div class="m-right">✅ Use CCQs, Demonstration &amp; Examples</div></div>
+      <div class="mistake-row"><div class="m-wrong">❌ ترجمه‌ی همه چیز</div><div class="m-arrow">➜</div><div class="m-right">✅ Context + Visuals + Gestures + TPR</div></div>
+      <div class="mistake-row"><div class="m-wrong">❌ نشستن پشت میز</div><div class="m-arrow">➜</div><div class="m-right">✅ Move, Monitor &amp; Interact</div></div>
+      <div class="mistake-row"><div class="m-wrong">❌ Activity بدون هدف آموزشی</div><div class="m-arrow">➜</div><div class="m-right">✅ هر Activity یک Learning Objective داشته باشد</div></div>
+      <div class="mistake-row"><div class="m-wrong">❌ بازی که فقط سرگرم می‌کند ولی یاد نمی‌دهد</div><div class="m-arrow">➜</div><div class="m-right">✅ Fun ≠ Learning</div></div>
+      <div class="mistake-row"><div class="m-wrong">❌ یکنواخت بودن Voice و Energy</div><div class="m-arrow">➜</div><div class="m-right">✅ Voice + Face + Body + Movement + Surprise</div></div>
+    </div>
+  </section>
+
+  <!-- 10 : CHALLENGE TIME -->
+  <section class="slide" id="slide-10">
+    <div class="kicker blink" style="color:var(--neon-pink);text-shadow:0 0 10px var(--neon-pink);">⚠️ CHALLENGE TIME ⚠️</div>
+    <h2 class="slide-title">🏆 <span class="fa">چالش شما</span></h2>
+    <div class="card" style="text-align:right;">
+      <p style="line-height:2.1;">⏱️ You have <b>5 minutes</b> to design and prepare a short Kids English Activity.<br>
+      یک موضوع ساده انتخاب کنید: 🐶 Animals · 🍎 Food · 🎨 Colors · 🧸 Toys · 🏃🏻 Actions</p>
+      <p style="margin-top:10px;color:var(--neon-cyan);font-weight:700;">Your Activity Must Include:</p>
+      <ul style="padding-right:20px;line-height:2.1;margin-top:4px;">
+        <li>1️⃣ <b>Learning Objective</b> — دقیقاً چه چیزی یاد گرفته شود؟</li>
+        <li>2️⃣ <b>Student Interaction</b> — Pair / Group / Whole-class</li>
+        <li>3️⃣ <b>Movement</b> — حرکت و مشارکت بدنی</li>
+        <li>4️⃣ <b>Short &amp; Clear Instructions</b> — دستورهای دقیق آماده باشد</li>
+        <li>5️⃣ <b>Kids-Appropriate</b> — متناسب با سن و سطح</li>
+        <li>6️⃣ <b>STT</b> — بچه‌ها فعالانه انگلیسی بگویند</li>
+        <li>7️⃣ <b>Fun + Purpose</b> — سرگرم‌کننده + تعاملی + مؤثر</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 11 : NOW TEACH IT -->
+  <section class="slide" id="slide-11">
+    <div class="kicker">FINAL ROUND</div>
+    <h2 class="slide-title">🎤 <span class="fa">Now, Teach It!</span></h2>
+    <div class="card" style="max-width:640px;">
+      <p style="line-height:2.2;font-size:clamp(14px,1.9vw,18px);">
+        ⏱️ You have <b>2–3 minutes</b> to demonstrate your Activity as if you were teaching a real Kids class.
+      </p>
+      <div class="chips" style="margin-top:10px;">
+        <span class="chip">👩🏻‍🏫 One Teacher → Teacher</span>
+        <span class="chip">👧🏻👦🏻 Other Teachers → Students</span>
+      </div>
+      <p style="margin-top:12px;color:#c9c4ee;line-height:2;">
+        ▶️ Start your Activity · Give instructions · Demonstrate · Monitor · Interact<br>
+        🔄 Then switch roles!
+      </p>
+    </div>
+  </section>
+
+  <!-- 12 : GOLDEN RULE / END -->
+  <section class="slide" id="slide-12">
+    <div class="kicker">🏆 GAME CLEAR 🏆</div>
+    <h2 class="slide-title">⭐ <span class="fa">قانون طلایی</span></h2>
+    <div class="card golden" style="max-width:760px;">
+      <p>«A good lesson is not just about <span class="hl">what we teach</span>.»</p>
+      <p>«It's about <span class="hl">how we make students learn, participate and enjoy</span>.»</p>
+    </div>
+    <div class="chips">
+      <span class="chip">🎯 Teach with Purpose</span>
+      <span class="chip">⚡ Teach with Energy</span>
+      <span class="chip">❤️ Make Learning Memorable</span>
+    </div>
+    <p class="insert-coin blink" style="margin-top:8px;">THANK YOU FOR PLAYING!</p>
+    <div class="final-btns">
+      <button class="btn pink" id="confetti-btn">🎉 جشن پایان!</button>
+      <button class="btn" id="restart-btn">↻ RESTART</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ MODAL ============ -->
+<div id="modal">
+  <div class="modal-box">
+    <button id="modal-close">✕</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="skills" id="modal-skills"></div>
+  </div>
+</div>
+
+<!-- ============ NAV ============ -->
+<div id="nav">
+  <button class="nav-btn" id="prev-btn">◀ PREV</button>
+  <div id="counter">1 / 13</div>
+  <button class="nav-btn" id="next-btn">NEXT ▶</button>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const GAMES = {
+  g1:{emoji:'👀',title:"What's Missing?",body:`
+    <ul>
+      <li>چند Flashcard روی تخته قرار دهید.</li>
+      <li>Students چشم‌هایشان را می‌بندند: <b>«Close your eyes!»</b></li>
+      <li>Teacher یکی از کارت‌ها را حذف می‌کند.</li>
+      <li><b>«Open your eyes!»</b> سپس: <b>«What's missing?»</b></li>
+      <li>Students باید کارت حذف‌شده را حدس بزنند.</li>
+    </ul>`,skills:'SKILLS: Memory + Vocabulary + Speaking'},
+  g2:{emoji:'⚡',title:'Fast Touch',body:`
+    <ul>
+      <li>دو دانش‌آموز روبه‌روی Flashcards قرار می‌گیرند.</li>
+      <li>Teacher می‌گوید: <b>«Touch the elephant!»</b></li>
+      <li>هرکس سریع‌تر کارت درست را لمس کند: 🏆 <b>One Point!</b></li>
+      <li>بازنده بیرون، نفر بعدی می‌آید (King of the Hill!).</li>
+    </ul>`,skills:'SKILLS: Listening + Vocabulary + Reaction Speed'},
+  g3:{emoji:'👋🏻',title:'Flashcard Slap',body:`
+    <ul>
+      <li>کارت‌ها روی میز قرار می‌گیرند.</li>
+      <li>Teacher کلمه را می‌گوید: <b>«Apple!»</b></li>
+      <li>Students باید سریع کارت درست را بزنند (با دست روی میز!).</li>
+    </ul>`,skills:'SKILLS: Listening + Word Recognition + Speed'},
+  g4:{emoji:'👁️',title:'Guess the Card',body:`
+    <ul>
+      <li>Teacher Flashcard را کم‌کم نشان می‌دهد.</li>
+      <li>Students حدس می‌زنند: <b>«Is it a cat?» «Is it a dog?» «Is it a lion?»</b></li>
+      <li>هرچه با اطلاعات کمتری حدس بزنند، Activity چالشی‌تر می‌شود.</li>
+    </ul>`,skills:'SKILLS: Question Forms + Vocabulary + Thinking'},
+  g5:{emoji:'🏃🏻‍♀️',title:'Run & Touch',body:`
+    <ul>
+      <li>Flashcards را در قسمت‌های مختلف Classroom بچسبانید.</li>
+      <li>Teacher می‌گوید: <b>«Touch something red!»</b> یا <b>«Touch the apple!»</b></li>
+      <li>Students باید حرکت کنند و کارت درست را پیدا کنند.</li>
+    </ul>`,skills:'SKILLS: Movement + Listening + Colors / Vocabulary'},
+  g6:{emoji:'🎵',title:'Pass the Card',body:`
+    <ul>
+      <li>Music یا Rhythm پخش می‌شود.</li>
+      <li>Students کارت را دست‌به‌دست می‌کنند.</li>
+      <li>Teacher: <b>«STOP!»</b> — Studentی که کارت دستش است باید کلمه را بگوید.</li>
+      <li>Levels بالاتر: <b>«It's a lion.»</b> یا <b>«I like lions.»</b></li>
+    </ul>`,skills:'SKILLS: Vocabulary + Sentence Building + Fun Pressure'},
+  g7:{emoji:'🎯',title:'Teacher Says',body:`
+    <ul>
+      <li>نسخه Flashcard-based از Simon Says:</li>
+      <li><b>«Teacher says… touch the lion!»</b> / <b>«Teacher says… show me the pencil!»</b></li>
+      <li>Students فقط زمانی دستور را انجام می‌دهند که با <b>«Teacher says…»</b> شروع شده باشد!</li>
+    </ul>`,skills:'SKILLS: Listening Carefully + TPR + Self-control 😄'},
+  h1:{emoji:'🏃🏻‍♀️',title:'Running Dictation',body:`
+    <ul>
+      <li>Students را به صورت <b>Pairs</b> تقسیم کنید.</li>
+      <li>Words، Phrases یا Short Sentences را در قسمت دیگری از Classroom قرار دهید.</li>
+      <li><b>Student A:</b> 🏃 Run → 👀 Read → 🏃 Come back → 🗣️ Dictate</li>
+      <li><b>Student B:</b> ✍️ Listen &amp; Write — سپس Roles عوض شود.</li>
+    </ul>`,skills:'SKILLS: Reading + Listening + Speaking + Writing + Teamwork'},
+  h2:{emoji:'🎲',title:'Roll & Say',body:`
+    <ul>
+      <li>Student یک Dice می‌اندازد. هر Number یک Category:</li>
+      <li>1 → Animal 🐶 · 2 → Food 🍕 · 3 → Color 🎨 · 4 → Toy 🧸 · 5 → Action 🏃🏻 · 6 → Free Choice ⭐</li>
+      <li>Student باید یک Word بگوید.</li>
+      <li>Levels بالاتر — Sentence بسازد: <b>«I like pizza.» «My favorite animal is a lion.»</b></li>
+    </ul>`,skills:'SKILLS: Vocabulary + Speaking + Fluency + Review'},
+  h3:{emoji:'🎭',title:'Charades',body:`
+    <ul>
+      <li>یک Student یک Word یا Action را بدون صحبت کردن اجرا می‌کند.</li>
+      <li>بقیه Students باید حدس بزنند.</li>
+      <li>Examples: <b>Swim · Dance · Monkey · Teacher · Happy · Tired</b></li>
+      <li>Levels بالاتر — حدس با Question: <b>«Is it a monkey?» «Is it swimming?»</b></li>
+    </ul>`,skills:'SKILLS: Vocabulary + Speaking + TPR + Interaction'},
+  h4:{emoji:'🏆',title:'Command & Pick',body:`
+    <ul>
+      <li>Students به صورت Pairs روبه‌روی هم می‌ایستند؛ بینشان یک Cup روی زمین است.</li>
+      <li>Teacher Commands می‌دهد: <b>«Touch your head.» «Touch your nose.» «Touch your ears.»</b></li>
+      <li>ناگهان: <b>«🚨 PICK!»</b> — هر دو باید سریع Cup را بردارند.</li>
+      <li>Student سریع‌تر: 🏆 <b>One Point!</b></li>
+    </ul>`,skills:'SKILLS: Listening + TPR + Concentration + Reaction Speed'}
+};
+
+/* ================= SLIDE ENGINE ================= */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const TOTAL = slides.length;
+let current = 0;
+let score = 0;
+
+const counter = document.getElementById('counter');
+const fill = document.getElementById('progress-fill');
+const scoreEl = document.getElementById('score-display');
+const levelEl = document.getElementById('level-badge');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+
+function updateHUD(){
+  counter.textContent = (current+1) + ' / ' + TOTAL;
+  fill.style.width = ((current+1)/TOTAL*100) + '%';
+  levelEl.textContent = 'LV.' + (current+1);
+  prevBtn.disabled = current === 0;
+  nextBtn.disabled = current === TOTAL-1;
+  scoreEl.textContent = score;
+}
+function addScore(n){
+  score += n;
+  scoreEl.textContent = score;
+  scoreEl.style.transform = 'scale(1.6)';
+  setTimeout(()=> scoreEl.style.transform = 'scale(1)', 160);
+}
+function goTo(i){
+  if(i < 0 || i >= TOTAL || i === current) return;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('leaving');
+  const old = slides[current];
+  setTimeout(()=> old.classList.remove('leaving'), 380);
+  current = i;
+  slides[current].classList.add('active');
+  updateHUD();
+  addScore(10);
+}
+prevBtn.onclick = ()=> goTo(current-1);
+nextBtn.onclick = ()=> goTo(current+1);
+document.getElementById('start-btn').onclick = ()=> { addScore(50); goTo(1); burstConfetti(40); };
+document.getElementById('restart-btn').onclick = ()=> goTo(0);
+
+document.addEventListener('keydown', e=>{
+  if(document.getElementById('modal').classList.contains('show')){
+    if(e.key === 'Escape') closeModal();
+    return;
+  }
+  if(e.key === 'ArrowLeft') goTo(current+1);
+  if(e.key === 'ArrowRight') goTo(current-1);
+  if(e.key === 'Enter' && current === 0) document.getElementById('start-btn').click();
+});
+
+/* swipe support */
+let touchX = null;
+document.addEventListener('touchstart', e=> touchX = e.touches[0].clientX);
+document.addEventListener('touchend', e=>{
+  if(touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if(Math.abs(dx) > 60){ dx < 0 ? goTo(current+1) : goTo(current-1); }
+  touchX = null;
+});
+
+/* ================= MODAL ================= */
+const modal = document.getElementById('modal');
+function openModal(key){
+  const g = GAMES[key];
+  document.getElementById('modal-title').textContent = g.emoji + ' ' + g.title;
+  document.getElementById('modal-body').innerHTML = g.body;
+  document.getElementById('modal-skills').textContent = g.skills;
+  modal.classList.add('show');
+  addScore(5);
+}
+function closeModal(){ modal.classList.remove('show'); }
+document.querySelectorAll('.game-card').forEach(c=>{
+  c.addEventListener('click', ()=> openModal(c.dataset.game));
+});
+document.getElementById('modal-close').onclick = closeModal;
+modal.addEventListener('click', e=> { if(e.target === modal) closeModal(); });
+
+/* ================= CONFETTI ================= */
+const COLORS = ['#ff2d95','#00f0ff','#ffe600','#39ff88','#a855f7'];
+function burstConfetti(n){
+  for(let i=0;i<n;i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random()*100 + 'vw';
+    c.style.background = COLORS[Math.floor(Math.random()*COLORS.length)];
+    c.style.animationDuration = (1.6 + Math.random()*1.8) + 's';
+    c.style.animationDelay = (Math.random()*.5) + 's';
+    c.style.borderRadius = Math.random() > .5 ? '50%' : '2px';
+    document.body.appendChild(c);
+    setTimeout(()=> c.remove(), 4000);
+  }
+}
+document.getElementById('confetti-btn').onclick = ()=> burstConfetti(120);
+
+/* ================= BG CANVAS (floating pixels) ================= */
+const cv = document.getElementById('bg-canvas');
+const ctx = cv.getContext('2d');
+let W, H, pixels = [];
+function resize(){
+  W = cv.width = innerWidth; H = cv.height = innerHeight;
+  pixels = Array.from({length: Math.min(70, W/18)}, ()=>({
+    x: Math.random()*W, y: Math.random()*H,
+    s: 2 + Math.random()*5,
+    vy: .2 + Math.random()*.6,
+    vx: (Math.random()-.5)*.3,
+    c: COLORS[Math.floor(Math.random()*COLORS.length)],
+    a: .15 + Math.random()*.4
+  }));
+}
+resize();
+addEventListener('resize', resize);
+(function loop(){
+  ctx.clearRect(0,0,W,H);
+  for(const p of pixels){
+    p.y -= p.vy; p.x += p.vx;
+    if(p.y < -10){ p.y = H+10; p.x = Math.random()*W; }
+    ctx.globalAlpha = p.a;
+    ctx.fillStyle = p.c;
+    ctx.fillRect(p.x, p.y, p.s, p.s);
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(loop);
+})();
+
+/* init */
+slides[0].classList.add('active');
+updateHUD();
+</script>
+</body>
+</html>
